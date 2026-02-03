@@ -5,19 +5,26 @@ import { UserRegistration, TrackKey, PaymentStatus } from '../types';
  * PRODUCTION API SERVICE for Supabase
  * 
  * Required Environment Variables (Set these in Vercel/Netlify):
- * - BACKEND_API_URL: Your Supabase URL + /rest/v1/applications
- * - BACKEND_API_KEY: Your Supabase 'anon' public key
+ * - BACKEND_API_URL: Just your Project URL (e.g., https://xyz.supabase.co)
+ * - BACKEND_API_KEY: Your 'anon' public key
  */
 
 const getApiConfig = () => {
-  // Supports standard environment variable names and common framework prefixes
-  const url = (
+  // 1. Get the base URL from environment
+  let baseUrl = (
     process.env.BACKEND_API_URL || 
     (process.env as any).VITE_BACKEND_API_URL || 
     (process.env as any).REACT_APP_BACKEND_API_URL || 
     ''
   ).trim();
 
+  // 2. Automatically format URL if it's just the base Supabase URL
+  if (baseUrl && !baseUrl.includes('/rest/v1')) {
+    // Remove trailing slash if exists, then add the endpoint
+    baseUrl = baseUrl.replace(/\/$/, '') + '/rest/v1/applications';
+  }
+
+  // 3. Get the API Key
   const key = (
     process.env.BACKEND_API_KEY || 
     (process.env as any).VITE_BACKEND_API_KEY || 
@@ -25,7 +32,7 @@ const getApiConfig = () => {
     ''
   ).trim();
 
-  return { url, key };
+  return { url: baseUrl, key };
 };
 
 export const apiService = {
@@ -48,7 +55,7 @@ export const apiService = {
 
       return { 
         success: false, 
-        error: "Configuration missing. Please set BACKEND_API_URL and BACKEND_API_KEY in your hosting environment variables." 
+        error: "Database credentials missing. If you are the owner, please add BACKEND_API_URL and BACKEND_API_KEY to your hosting settings." 
       };
     }
 
@@ -77,7 +84,7 @@ export const apiService = {
       if (!response.ok) {
         const errText = await response.text();
         console.error("Supabase API Error:", errText);
-        throw new Error(`DB Error (${response.status}): Check RLS policies.`);
+        throw new Error(`Connection Error: Your database rejected the request. Check your RLS policies.`);
       }
 
       return { success: true };
@@ -85,8 +92,9 @@ export const apiService = {
       console.error("Connection Error:", error);
       return { 
         success: false, 
-        error: error.message || "Failed to connect to the database." 
+        error: error.message || "Could not connect to the server. Please try again later." 
       };
     }
   }
 };
+
