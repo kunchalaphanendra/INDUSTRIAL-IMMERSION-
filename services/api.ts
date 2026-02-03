@@ -2,34 +2,21 @@
 import { UserRegistration, TrackKey, PaymentStatus } from '../types';
 
 /**
- * PRODUCTION API SERVICE for Supabase
+ * PRODUCTION API SERVICE for Supabase (Vite Version)
  * 
- * Note: For frontend apps, variables are usually injected at BUILD TIME.
- * If you change variables in Vercel, you MUST trigger a "Redeploy".
+ * IMPORTANT: In Vite, environment variables MUST start with VITE_ 
+ * to be accessible in the browser.
  */
 
 const getApiConfig = () => {
-  // Check common locations for environment variables in frontend builds
-  const env = (process.env || {}) as any;
-  const importMetaEnv = (import.meta as any)?.env || {};
+  // Vite uses import.meta.env for environment variables
+  const env = (import.meta as any).env || {};
 
-  let baseUrl = (
-    env.BACKEND_API_URL || 
-    env.VITE_BACKEND_API_URL || 
-    importMetaEnv.VITE_BACKEND_API_URL ||
-    env.REACT_APP_BACKEND_API_URL || 
-    ''
-  ).trim();
+  // We look for VITE_ prefixed versions which is the standard for Vite projects
+  let baseUrl = (env.VITE_BACKEND_API_URL || '').trim();
+  let key = (env.VITE_BACKEND_API_KEY || '').trim();
 
-  let key = (
-    env.BACKEND_API_KEY || 
-    env.VITE_BACKEND_API_KEY || 
-    importMetaEnv.VITE_BACKEND_API_KEY ||
-    env.REACT_APP_BACKEND_API_KEY || 
-    ''
-  ).trim();
-
-  // If the URL exists, ensure it's formatted for the applications table
+  // If the URL exists, ensure it's formatted for the Supabase REST API
   if (baseUrl && !baseUrl.includes('/rest/v1')) {
     baseUrl = baseUrl.replace(/\/$/, '') + '/rest/v1/applications';
   }
@@ -41,18 +28,18 @@ export const apiService = {
   async submitApplication(data: any): Promise<{ success: boolean; error?: string }> {
     const config = getApiConfig();
 
+    // Debugging for the developer (you'll see this in the browser console)
     if (!config.url || !config.key) {
-      console.error("Missing Config:", config);
+      console.error("Credentials missing. Make sure Vercel variables start with VITE_");
       
-      // Fallback for local testing
+      // Local development fallback
       if (window.location.hostname === 'localhost' || window.location.hostname.includes('stackblitz')) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
         return { success: true };
       }
 
       return { 
         success: false, 
-        error: "Database credentials missing. Please go to Vercel -> Settings -> Environment Variables, add BACKEND_API_URL and BACKEND_API_KEY, and then RE-DEPLOY your site." 
+        error: "Database credentials missing. Please rename your Vercel variables to VITE_BACKEND_API_URL and VITE_BACKEND_API_KEY, then click DEPLOY again." 
       };
     }
 
@@ -80,14 +67,15 @@ export const apiService = {
 
       if (!response.ok) {
         const errText = await response.text();
-        return { success: false, error: `DB Error: ${errText}` };
+        return { success: false, error: `Database responded with error: ${errText}` };
       }
 
       return { success: true };
     } catch (error: any) {
-      return { success: false, error: "Network error. Check your internet or DB URL." };
+      return { success: false, error: "Network connection failed. Please check your internet." };
     }
   }
 };
+
 
 
